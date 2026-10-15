@@ -1,13 +1,18 @@
 // netlify/functions/send-conversion-event.js
 //
-// Recibe eventos de conversión desde el navegador (hero, oferta y CTA final
-// de la landing de Bianca Odontología) y los reenvía server-side a la API
-// de Conversiones de Meta, deduplicados contra el Pixel vía event_id.
+// Recibe eventos de conversion desde el navegador (hero, oferta y CTA final
+// de la landing de Bianca Odontologia) y los reenvia server-side a la API
+// de Conversiones de Meta, deduplicados contra el Pixel via event_id.
 //
 // El Access Token NUNCA vive en este archivo ni en el repositorio: se lee
-// únicamente de la variable de entorno META_CAPI_ACCESS_TOKEN, configurada
-// a mano por el dueño del sitio en Netlify (Site settings > Environment
-// variables). Si no está presente, la función responde 500 y no envía nada.
+// unicamente de la variable de entorno META_CAPI_ACCESS_TOKEN, configurada
+// a mano por el dueno del sitio en Netlify (Site settings > Environment
+// variables). Si no esta presente, la funcion responde 500 y no envia nada.
+//
+// META_TEST_EVENT_CODE (opcional, no secreta): si esta configurada en
+// Netlify, se agrega test_event_code al payload para que los eventos
+// aparezcan en Meta Events Manager > Probar eventos en vez de contar como
+// trafico real. Se debe eliminar esa variable cuando termine la prueba.
 const PIXEL_ID = '675376958999264';
 const GRAPH_API_VERSION = 'v19.0';
 exports.handler = async function (event) {
@@ -18,14 +23,14 @@ exports.handler = async function (event) {
   if (!accessToken) {
     return {
       statusCode: 500,
-      body: JSON.stringify({ error: 'META_CAPI_ACCESS_TOKEN no está configurado en las variables de entorno de Netlify.' }),
+      body: JSON.stringify({ error: 'META_CAPI_ACCESS_TOKEN no esta configurado en las variables de entorno de Netlify.' }),
     };
   }
   let payload;
   try {
     payload = JSON.parse(event.body || '{}');
   } catch (e) {
-    return { statusCode: 400, body: JSON.stringify({ error: 'JSON inválido en el body.' }) };
+    return { statusCode: 400, body: JSON.stringify({ error: 'JSON invalido en el body.' }) };
   }
   const { event_name, event_id, event_source_url, fbp, fbc } = payload;
   if (!event_name || !event_id) {
@@ -54,6 +59,9 @@ exports.handler = async function (event) {
       },
       ],
   };
+  if (process.env.META_TEST_EVENT_CODE) {
+    metaPayload.test_event_code = process.env.META_TEST_EVENT_CODE;
+  }
   const url = `https://graph.facebook.com/${GRAPH_API_VERSION}/${PIXEL_ID}/events?access_token=${encodeURIComponent(accessToken)}`;
   try {
     const response = await fetch(url, {
